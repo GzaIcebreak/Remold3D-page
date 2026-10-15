@@ -224,7 +224,8 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
     <div class="steps">
       <div class="mrow">
         <div class="mtxt"><div class="n">01</div><h4>理解指令</h4><p>在候选视角 \(\mathcal{V}\) 中选出细节可见度 \(D\) 最高的视角 \(v^\ast\)，多模态规划器 \(\Phi\) 据此给出编辑类型 \(\tau\) 与目标部件 \(\mathcal{T}\)。\(R\) 表示渲染。</p></div>
-        <div class="eq">\[ v^\ast=\arg\max_{v\in\mathcal{V}} D\big(R(\mathcal{M},v)\big),\qquad (\tau,\ \mathcal{T})=\Phi\big(c,\ R(\mathcal{M},v^\ast)\big) \]</div>
+        <div class="eq">\[ v^\ast=\arg\max_{v\in\mathcal{V}} D\big(R(\mathcal{M},v)\big) \]
+        \[ (\tau,\ \mathcal{T})=\Phi\big(c,\ R(\mathcal{M},v^\ast)\big) \]</div>
       </div>
       <div class="mrow">
         <div class="mtxt"><div class="n">02</div><h4>定位部件</h4><p>语义部件分割把模型划分为互不相交的部件 \(P_k\)；目标部件构成编辑区 \(\mathcal{A}\)，其余为保留区 \(\mathcal{K}\)。</p></div>
@@ -232,7 +233,8 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
       </div>
       <div class="mrow">
         <div class="mtxt"><div class="n">03</div><h4>2D 引导生成</h4><p>图像编辑器 \(E\) 在 \(v^\ast\) 上按指令改图，3D 生成器 \(G\)（Meshy、Tripo 等第三方 API）把改后的图像提升为带贴图的三维 \(\mathcal{G}\)；\(\Omega\) 是图像上发生改动的区域。</p></div>
-        <div class="eq">\[ I'=E\big(R(\mathcal{M},v^\ast),\ c\big),\qquad \mathcal{G}=G(I'),\qquad \Omega=\big\{p:\ I'(p)\neq R(\mathcal{M},v^\ast)(p)\big\} \]</div>
+        <div class="eq">\[ I'=E\big(R(\mathcal{M},v^\ast),\ c\big),\qquad \mathcal{G}=G(I') \]
+        \[ \Omega=\big\{p:\ I'(p)\neq R(\mathcal{M},v^\ast)(p)\big\} \]</div>
       </div>
       <div class="mrow">
         <div class="mtxt"><div class="n">04</div><h4>保真融合</h4><p>先求相似变换 \(T^\ast\)，同时让生成结果贴合保留区、让它在 \(v^\ast\) 下的投影 \(\pi\) 吻合改图的轮廓 \(\alpha(I')\)。再取位于保留区之外（符号距离 \(\phi_{\mathcal{K}}>0\)）且落在改动区域内的部分作为新部件 \(\mathcal{N}\)。整体换形时直接取 \(\mathcal{M}'=T^\ast\mathcal{G}\)。</p></div>
