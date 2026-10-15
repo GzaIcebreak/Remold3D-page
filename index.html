@@ -106,6 +106,10 @@ h2 { font: 700 clamp(26px, 4vw, 34px)/1.15 var(--display); letter-spacing: -0.02
 .view .lab { position: absolute; left: 12px; top: 12px; z-index: 2; font: 600 12px/1 var(--mono); letter-spacing: 0.06em;
   padding: 6px 8px; border-radius: 5px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); }
 .view.edited .lab { color: var(--accent); border-color: var(--accent); }
+.view .wait { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; background: var(--stage);
+  font: 400 13px/1 var(--mono); color: var(--muted); transition: opacity .25s; }
+.view.ready .wait { opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .view .wait { transition: none; } }
 .under { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 18px; padding: 16px 18px; align-items: start; }
 @media (max-width: 720px) { .under { grid-template-columns: 1fr; } }
 .under p { margin: 0; color: var(--muted); font-size: 14.5px; }
@@ -164,11 +168,11 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
         <span class="tag" id="case-tag">替换部件</span>
       </div>
       <div class="pair">
-        <div class="view"><span class="lab">原模型</span>
-          <model-viewer id="mv-src" src="models/gatling_src.glb" alt="原模型" camera-controls touch-action="pan-y" interaction-prompt="none" shadow-intensity="0.7" exposure="1.05" environment-image="neutral" camera-orbit="-35deg 75deg auto"></model-viewer>
+        <div class="view" id="v-src"><span class="lab">原模型</span><span class="wait">加载模型中…</span>
+          <model-viewer id="mv-src" src="models/gatling_src.glb" alt="原模型" camera-controls touch-action="pan-y" interaction-prompt="none" shadow-intensity="0.7" exposure="1.05" environment-image="neutral" camera-orbit="50deg 72deg auto"></model-viewer>
         </div>
-        <div class="view edited"><span class="lab">编辑后</span>
-          <model-viewer id="mv-out" src="models/gatling_out.glb" alt="编辑后的模型" camera-controls touch-action="pan-y" interaction-prompt="none" shadow-intensity="0.7" exposure="1.05" environment-image="neutral" camera-orbit="-35deg 75deg auto"></model-viewer>
+        <div class="view edited" id="v-out"><span class="lab">编辑后</span><span class="wait">加载模型中…</span>
+          <model-viewer id="mv-out" src="models/gatling_out.glb" alt="编辑后的模型" camera-controls touch-action="pan-y" interaction-prompt="none" shadow-intensity="0.7" exposure="1.05" environment-image="neutral" camera-orbit="50deg 72deg auto"></model-viewer>
         </div>
       </div>
       <div class="under">
@@ -228,7 +232,7 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
 
 <script>
 const CASES = {
-  gatling: { instr: '把鱼尾巴换成一个加特林', tag: '替换部件',
+  gatling: { instr: '把鱼尾巴换成一个加特林', tag: '替换部件', orbit: '50deg 72deg auto',
     note: '鱼尾整个换成加特林，鸡头、鳞片和底座都保持原样。结构复杂、大部分表面被遮挡的新部件也能完整接入。' },
   poop: { instr: '把饭团改成大便', tag: '替换主体',
     note: '饭团是包着脸、手和领带的主体，整个身体被替换成新的造型。系统自动选择了能看清公文包的观察角度，配件细节得以保留。' },
@@ -246,7 +250,8 @@ function show(key) {
   if (!c) return;
   src.src = 'models/' + key + '_src.glb';
   out.src = 'models/' + key + '_out.glb';
-  src.cameraOrbit = out.cameraOrbit = '-35deg 75deg auto';
+  src.cameraOrbit = out.cameraOrbit = c.orbit || '-35deg 75deg auto';
+  ['v-src', 'v-out'].forEach(id => document.getElementById(id).classList.remove('ready'));
   document.getElementById('case-instr').textContent = c.instr;
   document.getElementById('case-tag').textContent = c.tag;
   document.getElementById('case-note').textContent = c.note;
@@ -255,6 +260,12 @@ function show(key) {
   document.querySelectorAll('.thumb').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.case === key)));
 }
 document.querySelectorAll('.thumb').forEach(b => b.addEventListener('click', () => show(b.dataset.case)));
+[[src, 'v-src'], [out, 'v-out']].forEach(([m, id]) => {
+  const done = () => document.getElementById(id).classList.add('ready');
+  m.addEventListener('load', done);
+  m.addEventListener('error', () => { document.querySelector('#' + id + ' .wait').textContent = '模型加载失败，请刷新重试'; });
+  if (m.loaded) done();
+});
 let syncing = false;
 function follow(from, to) {
   from.addEventListener('camera-change', e => {
