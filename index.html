@@ -109,8 +109,9 @@ h2 { font: 30px/40px var(--pixel); margin: 10px 0; font-weight: 400; }
 .btn:hover { background: #1b2029; color: var(--accent); border-color: var(--accent-dim); }
 .btn:active { transform: translate(1px, 1px); }
 .btn[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-.thumbs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
-@media (max-width: 600px) { .thumbs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.thumbs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+@media (max-width: 860px) { .thumbs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .thumbs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .thumbs .thumb:last-child { grid-column: 1 / -1; } }
 .thumb { all: unset; cursor: pointer; display: grid; gap: 8px; padding: 8px; min-width: 0; background: var(--panel); border: 2px solid var(--edge); box-shadow: 3px 3px 0 rgba(0, 0, 0, .5); }
 .thumb img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; image-rendering: auto; background: #eef1f5; }
 .thumb span { color: var(--dim); font: 20px/30px var(--pixel); }
@@ -138,11 +139,15 @@ h2 { font: 30px/40px var(--pixel); margin: 10px 0; font-weight: 400; }
 .eq .katex-display { margin: 6px 0; }
 .katex { font-size: 1.05em; }
 
+#ascii { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: .5; }
+.nav, main, footer { position: relative; z-index: 1; }
+.nav { position: sticky; z-index: 10; }
 footer { border-top: 2px solid var(--edge); padding-block: 20px 40px; color: var(--sub); }
 footer p { margin: 0 0 6px; max-width: 80ch; }
 </style>
 </head>
 <body>
+<canvas id="ascii" aria-hidden="true"></canvas>
 <nav class="nav" aria-label="页面导航">
   <div class="wrap">
     <a class="brand" href="#top">REMOLD<b>3D</b></a>
@@ -165,6 +170,7 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
       <span class="chip">把饭团改成大便</span>
       <span class="chip">在蝎子背上放一个真皮沙发，沙发上坐着皮卡丘</span>
       <span class="chip">给老鼠戴一顶厨师帽</span>
+      <span class="chip">把男孩换成 hello Kitty</span>
     </div>
   </header>
 
@@ -199,6 +205,7 @@ footer p { margin: 0 0 6px; max-width: 80ch; }
       <button class="thumb" data-case="poop" aria-pressed="false"><img src="img/poop_thumb.jpg" alt=""><span>饭团 → 便便</span></button>
       <button class="thumb" data-case="sofa" aria-pressed="false"><img src="img/sofa_thumb.jpg" alt=""><span>蝎子 + 沙发 + 皮卡丘</span></button>
       <button class="thumb" data-case="chef" aria-pressed="false"><img src="img/chef_thumb.jpg" alt=""><span>老鼠 + 厨师帽</span></button>
+      <button class="thumb" data-case="kitty" aria-pressed="false"><img src="img/kitty_thumb.jpg" alt=""><span>骑龙男孩 → Kitty</span></button>
     </div>
   </section>
 
@@ -257,7 +264,9 @@ const CASES = {
   sofa: { instr: '在蝎子背上生成一个真皮沙发，沙发上坐着皮卡丘', tag: '增加部件',
     note: '一次加入两个物体：沙发贴着蝎子的背甲，皮卡丘坐在沙发上。机械蝎子本身的每一块甲片都保持原样。' },
   chef: { instr: '给老鼠戴一顶厨师帽', tag: '增加部件',
-    note: '帽子落在两只耳朵之间，帽檐贴合头顶；耳朵、胡须和背带裤没有变化。' }
+    note: '帽子落在两只耳朵之间，帽檐贴合头顶；耳朵、胡须和背带裤没有变化。' },
+  kitty: { instr: '把男孩换成 hello Kitty', tag: '替换部件',
+    note: '骑在龙背上的男孩换成了 Hello Kitty，龙身的鳞片、羽尾和云纹都保持原样，Kitty 的手仍握着龙角。' }
 };
 const src = document.getElementById('mv-src');
 const out = document.getElementById('mv-out');
@@ -301,6 +310,90 @@ function follow(from, to) {
 }
 follow(src, out);
 follow(out, src);
+</script>
+<script>
+/* Background: a solid drawn in ASCII, turning in 3D and remolding between a sphere, a cube and a torus.
+   Each frame samples the surface on a (u, v) grid, keeps the nearest sample per character cell (z-buffer)
+   and picks the character by Lambert shading. */
+(() => {
+  const cv = document.getElementById('ascii');
+  const ctx = cv.getContext('2d');
+  const RAMP = '.,:;-=+*#%@';
+  const CW = 12, CH = 20, NU = 150, NV = 76;
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let cols = 0, rows = 0, zbuf, lum, last = 0;
+  function resize() {
+    cv.width = innerWidth; cv.height = innerHeight;
+    cols = Math.ceil(cv.width / CW); rows = Math.ceil(cv.height / CH);
+    zbuf = new Float32Array(cols * rows); lum = new Float32Array(cols * rows);
+  }
+  // a superquadric: exponent 2 is a sphere, large exponents approach a cube
+  function superq(u, v, k, out) {
+    const th = 2 * Math.PI * u, ph = Math.PI * v;
+    const dx = Math.sin(ph) * Math.cos(th), dy = Math.cos(ph), dz = Math.sin(ph) * Math.sin(th);
+    const m = Math.pow(Math.pow(Math.abs(dx), k) + Math.pow(Math.abs(dy), k) + Math.pow(Math.abs(dz), k), 1 / k) || 1;
+    const x = dx / m, y = dy / m, z = dz / m;
+    let nx = Math.sign(x) * Math.pow(Math.abs(x), k - 1), ny = Math.sign(y) * Math.pow(Math.abs(y), k - 1), nz = Math.sign(z) * Math.pow(Math.abs(z), k - 1);
+    const nl = Math.hypot(nx, ny, nz) || 1;
+    out[0] = x; out[1] = y; out[2] = z; out[3] = nx / nl; out[4] = ny / nl; out[5] = nz / nl;
+  }
+  function torus(u, v, out) {
+    const th = 2 * Math.PI * u, ph = 2 * Math.PI * v, R = 0.78, r = 0.38;
+    out[0] = (R + r * Math.cos(ph)) * Math.cos(th); out[1] = r * Math.sin(ph); out[2] = (R + r * Math.cos(ph)) * Math.sin(th);
+    out[3] = Math.cos(ph) * Math.cos(th); out[4] = Math.sin(ph); out[5] = Math.cos(ph) * Math.sin(th);
+  }
+  const SHAPES = [(u, v, o) => superq(u, v, 2, o), (u, v, o) => superq(u, v, 9, o), torus];
+  const smooth = t => t * t * (3 - 2 * t);
+  const a = new Float32Array(6), b = new Float32Array(6);
+  function frame(t) {
+    const phase = t / 4200, i = Math.floor(phase) % SHAPES.length, f = smooth(Math.min(1, (phase % 1) * 1.6));
+    const sa = SHAPES[i], sb = SHAPES[(i + 1) % SHAPES.length];
+    const A = t / 3100, B = t / 4700;
+    const cA = Math.cos(A), sA = Math.sin(A), cB = Math.cos(B), sB = Math.sin(B);
+    const size = Math.min(cv.width, cv.height) * 0.34;
+    const ox = cv.width * (cv.width > 900 ? 0.72 : 0.5), oy = cv.height * 0.46;
+    zbuf.fill(-1e9); lum.fill(-1);
+    const L = [-0.45, 0.7, 0.55];
+    for (let iu = 0; iu < NU; iu++) for (let iv = 0; iv < NV; iv++) {
+      const u = iu / NU, v = (iv + 0.5) / NV;
+      sa(u, v, a); sb(u, v, b);
+      let x = a[0] + (b[0] - a[0]) * f, y = a[1] + (b[1] - a[1]) * f, z = a[2] + (b[2] - a[2]) * f;
+      let nx = a[3] + (b[3] - a[3]) * f, ny = a[4] + (b[4] - a[4]) * f, nz = a[5] + (b[5] - a[5]) * f;
+      // rotate about y, then x
+      let x1 = x * cA + z * sA, z1 = -x * sA + z * cA;
+      let y2 = y * cB - z1 * sB, z2 = y * sB + z1 * cB;
+      let nx1 = nx * cA + nz * sA, nz1 = -nx * sA + nz * cA;
+      let ny2 = ny * cB - nz1 * sB, nz2 = ny * sB + nz1 * cB;
+      const p = 3.2 / (3.2 - z2);
+      const c = Math.floor((ox + x1 * size * p) / CW), r = Math.floor((oy - y2 * size * p) / CH);
+      if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
+      const k = r * cols + c;
+      if (z2 > zbuf[k]) {
+        zbuf[k] = z2;
+        const nlen = Math.hypot(nx1, ny2, nz2) || 1;
+        lum[k] = Math.max(0, (nx1 * L[0] + ny2 * L[1] + nz2 * L[2]) / nlen);
+      }
+    }
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.font = '20px FusionPixel, ui-monospace, monospace';
+    ctx.textBaseline = 'top';
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const l = lum[r * cols + c];
+      if (l < 0) continue;
+      ctx.fillStyle = l > 0.55 ? '#ff8b2c' : l > 0.25 ? '#b35d16' : '#4a5462';
+      ctx.fillText(RAMP[Math.min(RAMP.length - 1, Math.floor(l * RAMP.length))], c * CW, r * CH);
+    }
+  }
+  function loop(t) {
+    if (!document.hidden && t - last > 50) { frame(t); last = t; }
+    requestAnimationFrame(loop);
+  }
+  resize();
+  addEventListener('resize', () => { resize(); if (still) frame(2600); });
+  (document.fonts ? document.fonts.load('20px FusionPixel') : Promise.resolve()).catch(() => {}).then(() => {
+    if (still) frame(2600); else requestAnimationFrame(loop);
+  });
+})();
 </script>
 </body>
 </html>
