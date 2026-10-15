@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Remold3D：用一句话改造已有的 3D 模型。">
+<title>Remold3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+<style>
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+</style>
+<style>
+/* Layout: a 3D-software viewport — neutral grey stage, the "selected object" orange as the one accent; content in one 1080px column */
+:root {
+  --bg: #eceef1;
+  --panel: #ffffff;
+  --stage: #dfe3e8;
+  --fg: #15181c;
+  --muted: #59616b;
+  --line: #d3d8de;
+  --accent: #c76a05;        /* selection orange, deepened for text on light */
+  --accent-soft: #f6e3cd;
+  --grid: rgba(21, 24, 28, 0.06);
+  --display: "Bricolage Grotesque", "Noto Sans SC", system-ui, sans-serif;
+  --body: "Noto Sans SC", system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1a1d21; --panel: #22262b; --stage: #2a2e34; --fg: #e9ebee; --muted: #9aa3ad; --line: #353a41;
+    --accent: #f5a03a; --accent-soft: #3b2c1b; --grid: rgba(233, 235, 238, 0.05); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1a1d21; --panel: #22262b; --stage: #2a2e34; --fg: #e9ebee; --muted: #9aa3ad; --line: #353a41;
+  --accent: #f5a03a; --accent-soft: #3b2c1b; --grid: rgba(233, 235, 238, 0.05); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 400 16px/1.7 var(--body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-inline: 16px; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* nav */
+.nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.nav .wrap { display: flex; align-items: center; gap: 20px; min-height: 52px; flex-wrap: wrap; }
+.brand { font: 700 18px/1 var(--display); letter-spacing: -0.01em; color: var(--fg); text-decoration: none; }
+.brand b { color: var(--accent); font-weight: 700; }
+.nav ul { display: flex; gap: 18px; margin: 0; padding: 0; list-style: none; flex-wrap: wrap; }
+.nav ul a { color: var(--muted); text-decoration: none; font-size: 14px; }
+.nav ul a:hover { color: var(--fg); }
+
+/* hero */
+.hero { padding-block: 56px 28px; }
+.eyebrow { font: 600 12px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 700 clamp(44px, 8vw, 84px)/0.95 var(--display); letter-spacing: -0.03em; margin: 14px 0 10px; text-wrap: balance; }
+.tagline { font: 500 clamp(20px, 3vw, 26px)/1.35 var(--body); margin: 0 0 18px; text-wrap: balance; }
+.lede { max-width: 62ch; color: var(--muted); margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.chip { font: 400 13px/1 var(--mono); padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--fg); }
+
+section { padding-block: 36px; }
+h2 { font: 700 clamp(26px, 4vw, 34px)/1.15 var(--display); letter-spacing: -0.02em; margin: 0 0 8px; text-wrap: balance; }
+.sub { color: var(--muted); margin: 0 0 22px; max-width: 64ch; }
+
+/* capabilities */
+.caps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.cap { background: var(--panel); padding: 20px; min-width: 0; }
+.cap h3 { font: 700 17px/1.3 var(--body); margin: 0 0 6px; }
+.cap p { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+/* pipeline */
+.flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; counter-reset: step; }
+@media (max-width: 760px) { .flow { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 440px) { .flow { grid-template-columns: 1fr; } }
+.step { border: 1px solid var(--line); background: var(--panel); padding: 14px 14px 16px; border-radius: 8px; min-width: 0; }
+.step .n { font: 600 12px/1 var(--mono); color: var(--accent); }
+.step h4 { font: 700 16px/1.3 var(--body); margin: 8px 0 4px; }
+.step code { font: 400 12px/1 var(--mono); color: var(--muted); }
+.step p { margin: 6px 0 0; font-size: 13.5px; color: var(--muted); }
+.rules { margin-top: 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 24px; }
+.rules p { margin: 0; font-size: 14.5px; color: var(--muted); }
+.rules strong { color: var(--fg); }
+
+/* cases */
+.stagebox { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
+.instr { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.instr .k { font: 600 12px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.instr .q { font: 500 clamp(18px, 2.6vw, 22px)/1.4 var(--body); min-width: 0; }
+.instr .tag { margin-left: auto; font: 400 12px/1 var(--mono); padding: 6px 8px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); }
+@media (max-width: 720px) { .pair { grid-template-columns: 1fr; } }
+.view { position: relative; background: var(--stage); min-width: 0;
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 32px 32px; }
+.view.edited { box-shadow: inset 0 0 0 2px var(--accent); }
+.view model-viewer { width: 100%; aspect-ratio: 1 / 1; max-width: 100%; background: transparent; --poster-color: transparent; }
+.view .lab { position: absolute; left: 12px; top: 12px; z-index: 2; font: 600 12px/1 var(--mono); letter-spacing: 0.06em;
+  padding: 6px 8px; border-radius: 5px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); }
+.view.edited .lab { color: var(--accent); border-color: var(--accent); }
+.under { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 18px; padding: 16px 18px; align-items: start; }
+@media (max-width: 720px) { .under { grid-template-columns: 1fr; } }
+.under p { margin: 0; color: var(--muted); font-size: 14.5px; }
+.edit2d { margin: 0; }
+.edit2d img { width: 100%; border-radius: 6px; border: 1px solid var(--line); display: block; }
+.edit2d figcaption { font: 400 12px/1.4 var(--mono); color: var(--muted); margin-top: 6px; }
+.controls { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 10px; font-size: 13.5px; color: var(--muted); }
+.controls label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.thumbs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+@media (max-width: 560px) { .thumbs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.thumb { all: unset; cursor: pointer; display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); min-width: 0; }
+.thumb img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 5px; display: block; }
+.thumb span { font-size: 13px; line-height: 1.35; color: var(--muted); }
+.thumb[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.thumb[aria-pressed="true"] span { color: var(--fg); }
+.thumb:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* footer */
+footer { border-top: 1px solid var(--line); padding-block: 24px 40px; color: var(--muted); font-size: 13.5px; }
+footer p { margin: 0 0 6px; max-width: 80ch; }
+</style>
+</head>
+<body>
+<nav class="nav" aria-label="页面导航">
+  <div class="wrap">
+    <a class="brand" href="#top">Remold<b>3D</b></a>
+    <ul>
+      <li><a href="#overview">概览</a></li>
+      <li><a href="#pipeline">流程</a></li>
+      <li><a href="#cases">案例</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main id="top">
+  <header class="hero wrap">
+    <div class="eyebrow">Instruction-guided 3D editing</div>
+    <h1>Remold3D</h1>
+    <p class="tagline">用一句话改造已有的 3D 模型</p>
+    <p class="lede">输入一个带贴图的 GLB 和一条中文或英文指令，得到编辑后的 GLB。只有指令说到的部分会变；其余部分的网格、UV 和贴图逐面保留，不经过重新生成。</p>
+    <div class="chips" aria-label="指令示例">
+      <span class="chip">把鱼尾巴换成一个加特林</span>
+      <span class="chip">把饭团改成大便</span>
+      <span class="chip">在蝎子背上放一个真皮沙发，沙发上坐着皮卡丘</span>
+      <span class="chip">给老鼠戴一顶厨师帽</span>
+    </div>
+  </header>
+
+  <section id="cases" class="wrap">
+    <h2>按指令编辑</h2>
+    <p class="sub">左边是原模型，右边是编辑结果，拖动任意一侧旋转，两侧视角同步。下方小图是 Qwen 按指令改出的编辑视角图，第三方 3D 生成服务依据它生成新部件。</p>
+    <div class="stagebox">
+      <div class="instr">
+        <span class="k">指令</span>
+        <span class="q" id="case-instr">把鱼尾巴换成一个加特林</span>
+        <span class="tag" id="case-tag">替换部件</span>
+      </div>
+      <div class="pair">
+        <div class="view"><span class="lab">原模型</span>
+          <model-viewer id="mv-src" src="models/gatling_src.glb" alt="原模型" camera-controls touch-action="pan-y" interaction-prompt="none" shadow-intensity="0.7" exposure="1.05" environment-image="neutral" camera-orbit="-35deg 75deg auto"></model-viewer>
+        </div>
+        <div class="view edited"><span class="lab">编辑后</span>
+          <model-viewer id="mv-out" src="models/gatling_out.glb" alt="编辑后的模型" camera-controls touch-action="pan-y" interaction-prompt="none" shadow-intensity="0.7" exposure="1.05" environment-image="neutral" camera-orbit="-35deg 75deg auto"></model-viewer>
+        </div>
+      </div>
+      <div class="under">
+        <div>
+          <p id="case-note">鱼尾整个换成加特林，鸡头、鳞片和底座的网格与贴图没有动。加特林内部结构多，编辑视角只看得到它约 15% 的表面，它仍被认作新部件保留下来。</p>
+          <div class="controls">
+            <label for="sync"><input type="checkbox" id="sync" checked> 同步两侧视角</label>
+            <label for="spin"><input type="checkbox" id="spin"> 自动旋转</label>
+          </div>
+        </div>
+        <figure class="edit2d">
+          <img id="case-edit" src="img/gatling_edit.jpg" alt="编辑视角的 2D 改图">
+          <figcaption>编辑视角的 2D 改图（Qwen-Image）</figcaption>
+        </figure>
+      </div>
+    </div>
+    <div class="thumbs" role="group" aria-label="选择案例">
+      <button class="thumb" data-case="gatling" aria-pressed="true"><img src="img/gatling_edit.jpg" alt=""><span>鱼尾 → 加特林</span></button>
+      <button class="thumb" data-case="poop" aria-pressed="false"><img src="img/poop_edit.jpg" alt=""><span>饭团 → 便便</span></button>
+      <button class="thumb" data-case="sofa" aria-pressed="false"><img src="img/sofa_edit.jpg" alt=""><span>蝎子背上加沙发和皮卡丘</span></button>
+      <button class="thumb" data-case="chef" aria-pressed="false"><img src="img/chef_edit.jpg" alt=""><span>老鼠戴厨师帽</span></button>
+    </div>
+  </section>
+
+  <section id="overview" class="wrap">
+    <h2>概览</h2>
+    <p class="sub">一条指令先被理解成一次具体的编辑：改哪个部件、怎么改。随后在一个视角上改图，调用第三方 3D 生成 API 按改图生成新几何，再把新几何接回原模型。</p>
+    <div class="caps">
+      <div class="cap"><h3>只动该动的部分</h3><p>拆件找出目标部件；拼接时其余面原样保留，接缝处用射线符号距离判断内外，不用体素。</p></div>
+      <div class="cap"><h3>增、删、换、换色</h3><p>六种编辑：局部换色、增加、删除、替换部件，整体风格，整体换材质。由 Qwen 判断属于哪种。</p></div>
+      <div class="cap"><h3>主体也能换</h3><p>目标占全身四成以上且包住其余部件时（饭团包着脸和手），直接输出按改图生成的整体模型。</p></div>
+      <div class="cap"><h3>自动选视角</h3><p>渲染左前、右前两个 3/4 视角，由 Qwen 选露出细节多的那个来改图，被挡住的配件更少丢失。</p></div>
+    </div>
+  </section>
+
+  <section id="pipeline" class="wrap">
+    <h2>流程</h2>
+    <p class="sub">八个步骤按顺序执行。一次几何编辑通常用时 4–10 分钟，其中 3D 生成约 2–4 分钟。</p>
+    <div class="flow">
+      <div class="step"><div class="n">01</div><h4>选视角</h4><code>viewpick</code><p>两个 3/4 视角中选细节多的一个</p></div>
+      <div class="step"><div class="n">02</div><h4>准备</h4><code>source</code><p>按该视角渲染、编码原模型</p></div>
+      <div class="step"><div class="n">03</div><h4>规划</h4><code>instruct</code><p>Qwen 给出编辑类型、目标部件和改图指令</p></div>
+      <div class="step"><div class="n">04</div><h4>拆件</h4><code>split</code><p>SAM3 多视角把模型拆成部件</p></div>
+      <div class="step"><div class="n">05</div><h4>改图</h4><code>image_edit</code><p>Qwen-Image 在编辑视角上改图</p></div>
+      <div class="step"><div class="n">06</div><h4>生成</h4><code>3D 生成 API</code><p>调用 Meshy、Tripo 等第三方 API，按改图生成整个物体</p></div>
+      <div class="step"><div class="n">07</div><h4>对齐</h4><code>register</code><p>整体配准，再在目标附近微调</p></div>
+      <div class="step"><div class="n">08</div><h4>拼接</h4><code>contact · shell</code><p>选出新部件，接回原模型</p></div>
+    </div>
+    <div class="rules">
+      <p><strong>接触判断。</strong>新部件取生成结果里落在保留部分之外、又在 2D 改动区域内的面；判断用 GPU 上的 BVH 射线查询。</p>
+      <p><strong>对齐把关。</strong>局部微调把轮廓调差就退回整体对齐；整体也对不准时，直接输出生成的模型，不做拼接。</p>
+      <p><strong>残留配件。</strong>被替换部件身上的小配件，若改图里已经看不到，会随部件一起删掉。</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <p>Remold3D 建立在 SAM3-SegviGen 部件分割之上，3D 生成支持 Meshy、Tripo 等第三方 API，编码与工具链来自 Pixal3D（TRELLIS.2），规划与改图使用阿里云百炼 Qwen / Qwen-Image；思路参考 Hunyuan3D-Buffalo 与 Nano3D。</p>
+  <p>页面中的模型为便于网页加载做过减面和贴图压缩，原始输出精度更高。</p>
+</footer>
+
+<script>
+const CASES = {
+  gatling: { instr: '把鱼尾巴换成一个加特林', tag: '替换部件',
+    note: '鱼尾整个换成加特林，鸡头、鳞片和底座的网格与贴图没有动。加特林内部结构多，编辑视角只看得到它约 15% 的表面，它仍被认作新部件保留下来。' },
+  poop: { instr: '把饭团改成大便', tag: '替换主体',
+    note: '饭团是包着脸、手和领带的主体，属于主体替换，输出是按改图生成的整体模型。编辑视角由 Qwen 自动选为右前 3/4，公文包在这一侧完整可见，细节得以保留。' },
+  sofa: { instr: '在蝎子背上生成一个真皮沙发，沙发上坐着皮卡丘', tag: '增加部件',
+    note: '一次加入两个物体：沙发贴着蝎子的背甲，皮卡丘坐在沙发上。机械蝎子本身的每一块甲片都保持原样。' },
+  chef: { instr: '给老鼠戴一顶厨师帽', tag: '增加部件',
+    note: '帽子落在两只耳朵之间，帽檐贴合头顶；耳朵、胡须和背带裤没有变化。' }
+};
+const src = document.getElementById('mv-src');
+const out = document.getElementById('mv-out');
+const sync = document.getElementById('sync');
+const spin = document.getElementById('spin');
+function show(key) {
+  const c = CASES[key];
+  if (!c) return;
+  src.src = 'models/' + key + '_src.glb';
+  out.src = 'models/' + key + '_out.glb';
+  src.cameraOrbit = out.cameraOrbit = '-35deg 75deg auto';
+  document.getElementById('case-instr').textContent = c.instr;
+  document.getElementById('case-tag').textContent = c.tag;
+  document.getElementById('case-note').textContent = c.note;
+  const img = document.getElementById('case-edit');
+  img.src = 'img/' + key + '_edit.jpg';
+  document.querySelectorAll('.thumb').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.case === key)));
+}
+document.querySelectorAll('.thumb').forEach(b => b.addEventListener('click', () => show(b.dataset.case)));
+let syncing = false;
+function follow(from, to) {
+  from.addEventListener('camera-change', e => {
+    if (!sync.checked || syncing || e.detail.source !== 'user-interaction') return;
+    syncing = true;
+    to.cameraOrbit = from.getCameraOrbit().toString();
+    to.fieldOfView = from.getFieldOfView() + 'deg';
+    to.jumpCameraToGoal();
+    syncing = false;
+  });
+}
+follow(src, out);
+follow(out, src);
+spin.addEventListener('change', () => {
+  [src, out].forEach(m => { if (spin.checked) m.setAttribute('auto-rotate', ''); else m.removeAttribute('auto-rotate'); });
+});
+</script>
+</body>
+</html>
