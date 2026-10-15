@@ -102,7 +102,7 @@ h2 { font: 700 clamp(26px, 4vw, 34px)/1.15 var(--display); letter-spacing: -0.02
   background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 32px 32px; }
 .view.edited { box-shadow: inset 0 0 0 2px var(--accent); }
-.view model-viewer { width: 100%; aspect-ratio: 1 / 1; max-width: 100%; background: transparent; --poster-color: transparent; }
+.view model-viewer { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; max-width: 100%; background: transparent; --poster-color: transparent; }
 .view .lab { position: absolute; left: 12px; top: 12px; z-index: 2; font: 600 12px/1 var(--mono); letter-spacing: 0.06em;
   padding: 6px 8px; border-radius: 5px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); }
 .view.edited .lab { color: var(--accent); border-color: var(--accent); }
